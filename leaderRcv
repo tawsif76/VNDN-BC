@@ -1,0 +1,218 @@
+import re
+import sys
+from pathlib import Path
+
+def find_rsu_registration_messages(log_file_path):
+    """
+    Find all lines containing RSU registration request messages.
+    Pattern: [RSU-X] Registration request from V-Y
+    
+    Args:
+        log_file_path (str): Path to the output_sim.log file
+    
+    Returns:
+        list: List of tuples containing (line_number, matched_line, rsu_number, vehicle_number)
+    """
+    # Regex pattern to match "[RSU-X] Registration request from V-Y"
+    pattern = r'\[RSU-(\d+)\] Registration request from V-(\d+)'
+    
+    matches = []
+    
+    try:
+        with open(log_file_path, 'r', encoding='utf-8') as file:
+            for line_num, line in enumerate(file, 1):
+                match = re.search(pattern, line)
+                if match:
+                    rsu_number = match.group(1)     # RSU number
+                    vehicle_number = match.group(2) # Vehicle number
+                    matches.append((line_num, line.strip(), rsu_number, vehicle_number))
+    
+    except FileNotFoundError:
+        print(f"Error: File '{log_file_path}' not found.")
+        return []
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return []
+    
+    return matches
+
+def main():
+    # Default log file name
+    log_file = "output_sim.log"
+    
+    # Allow command line argument for custom file path
+    if len(sys.argv) > 1:
+        log_file = sys.argv[1]
+    
+    # Check if file exists
+    if not Path(log_file).exists():
+        print(f"Log file '{log_file}' not found in current directory.")
+        print("Usage: python script.py [path_to_log_file]")
+        sys.exit(1)
+    
+    print(f"Searching for RSU registration request messages in '{log_file}'...")
+    print("-" * 60)
+    
+    matches = find_rsu_registration_messages(log_file)
+    
+    if matches:
+        print(f"Found {len(matches)} RSU registration request message(s):\n")
+        
+        # Group by RSU for better organization
+        by_rsu = {}
+        by_vehicle = {}
+        
+        for line_num, line, rsu_num, vehicle_num in matches:
+            # Group by RSU
+            if rsu_num not in by_rsu:
+                by_rsu[rsu_num] = []
+            by_rsu[rsu_num].append((line_num, line, vehicle_num))
+            
+            # Group by Vehicle
+            if vehicle_num not in by_vehicle:
+                by_vehicle[vehicle_num] = []
+            by_vehicle[vehicle_num].append((line_num, line, rsu_num))
+        
+        # Display all matches first
+        print("All Registration Request Messages:")
+        for line_num, line, rsu_num, vehicle_num in matches:
+            print(f"  Line {line_num}: {line}")
+        print()
+        
+        # Display results grouped by RSU
+        print("Grouped by RSU:")
+        for rsu_num in sorted(by_rsu.keys(), key=int):
+            print(f"  RSU-{rsu_num} received registration requests from:")
+            vehicle_counts = {}
+            for line_num, line, vehicle_num in by_rsu[rsu_num]:
+                print(f"    V-{vehicle_num} (Line {line_num})")
+                vehicle_counts[vehicle_num] = vehicle_counts.get(vehicle_num, 0) + 1
+            
+            # Show multiple registrations from same vehicle
+            multiple_regs = {v: c for v, c in vehicle_counts.items() if c > 1}
+            if multiple_regs:
+                print(f"    Note: Multiple registrations from {', '.join(f'V-{v} ({c}x)' for v, c in multiple_regs.items())}")
+            print()
+        
+        # Display results grouped by Vehicle
+        print("Grouped by Vehicle:")
+        for vehicle_num in sorted(by_vehicle.keys(), key=int):
+            print(f"  V-{vehicle_num} registered with:")
+            rsu_counts = {}
+            for line_num, line, rsu_num in by_vehicle[vehicle_num]:
+                print(f"    RSU-{rsu_num} (Line {line_num})")
+                rsu_counts[rsu_num] = rsu_counts.get(rsu_num, 0) + 1
+            
+            # Show multiple registrations to same RSU
+            multiple_regs = {r: c for r, c in rsu_counts.items() if c > 1}
+            if multiple_regs:
+                print(f"    Note: Multiple registrations to {', '.join(f'RSU-{r} ({c}x)' for r, c in multiple_regs.items())}")
+            print()
+        
+        # Summary statistics
+        print("Summary:")
+        print(f"  Total registration requests: {len(matches)}")
+        print(f"  Number of RSUs handling registrations: {len(by_rsu)}")
+        print(f"  Number of vehicles registering: {len(by_vehicle)}")
+        
+        # Most active RSUs and vehicles
+        if by_rsu:
+            most_active_rsu = max(by_rsu.items(), key=lambda x: len(x[1]))
+            print(f"  Most active RSU: RSU-{most_active_rsu[0]} ({len(most_active_rsu[1])} requests)")
+        
+        if by_vehicle:
+            most_active_vehicle = max(by_vehicle.items(), key=lambda x: len(x[1]))
+            print(f"  Most active vehicle: V-{most_active_vehicle[0]} ({len(most_active_vehicle[1])} registrations)")
+        
+        # Identify potential issues
+        print("\nPotential Issues:")
+        # Vehicles registering with multiple RSUs
+        multi_rsu_vehicles = {v: rsus for v, rsus in by_vehicle.items() if len(set(r for _, _, r in rsus)) > 1}
+        if multi_rsu_vehicles:
+            print("  Vehicles registered with multiple RSUs:")
+            for vehicle, registrations in multi_rsu_vehicles.items():
+                unique_rsus = set(r for _, _, r in registrations)
+                print(f"    V-{vehicle}: {', '.join(f'RSU-{r}' for r in sorted(unique_rsus, key=int))}")
+        
+        # Multiple registrations from same vehicle to same RSU
+        duplicate_registrations = []
+        for vehicle_num, registrations in by_vehicle.items():
+            rsu_counts = {}
+            for _, _, rsu_num in registrations:
+                rsu_counts[rsu_num] = rsu_counts.get(rsu_num, 0) + 1
+            duplicates = {r: c for r, c in rsu_counts.items() if c > 1}
+            if duplicates:
+                duplicate_registrations.append((vehicle_num, duplicates))
+        
+        if duplicate_registrations:
+            print("  Duplicate registrations (same vehicle to same RSU):")
+            for vehicle, duplicates in duplicate_registrations:
+                for rsu, count in duplicates.items():
+                    print(f"    V-{vehicle} → RSU-{rsu}: {count} times")
+            
+    else:
+        print("No RSU registration request messages found.")
+
+def search_specific_registration(log_file_path, rsu_number=None, vehicle_number=None):
+    """
+    Search for registration requests with specific RSU or vehicle number.
+    
+    Args:
+        log_file_path (str): Path to the log file
+        rsu_number (int, optional): RSU number to filter by
+        vehicle_number (int, optional): Vehicle number to filter by
+    
+    Returns:
+        list: List of matching lines
+    """
+    if rsu_number is not None and vehicle_number is not None:
+        pattern = f'\\[RSU-{rsu_number}\\] Registration request from V-{vehicle_number}'
+    elif rsu_number is not None:
+        pattern = f'\\[RSU-{rsu_number}\\] Registration request from V-(\\d+)'
+    elif vehicle_number is not None:
+        pattern = f'\\[RSU-(\\d+)\\] Registration request from V-{vehicle_number}'
+    else:
+        pattern = r'\[RSU-(\d+)\] Registration request from V-(\d+)'
+    
+    matches = []
+    
+    try:
+        with open(log_file_path, 'r', encoding='utf-8') as file:
+            for line_num, line in enumerate(file, 1):
+                if re.search(pattern, line):
+                    matches.append((line_num, line.strip()))
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+    
+    return matches
+
+def analyze_registration_timeline(log_file_path):
+    """
+    Analyze registration timeline to understand registration patterns over time.
+    
+    Args:
+        log_file_path (str): Path to the log file
+    """
+    matches = find_rsu_registration_messages(log_file_path)
+    
+    if not matches:
+        print("No registration messages found for timeline analysis.")
+        return
+    
+    print("Registration Timeline Analysis:")
+    print("-" * 40)
+    
+    # Show first and last registrations
+    first_reg = matches[0]
+    last_reg = matches[-1]
+    
+    print(f"First registration: Line {first_reg[0]} - RSU-{first_reg[2]} from V-{first_reg[3]}")
+    print(f"Last registration: Line {last_reg[0]} - RSU-{last_reg[2]} from V-{last_reg[3]}")
+    print(f"Registration span: {last_reg[0] - first_reg[0]} lines")
+
+if __name__ == "__main__":
+    main()
+    
+    # Uncomment the line below to also run timeline analysis
+    # analyze_registration_timeline(sys.argv[1] if len(sys.argv) > 1 else "output_sim.log")

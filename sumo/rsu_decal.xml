@@ -1,0 +1,20 @@
+<additional>
+    <!--
+    This file defines 10 Road Side Units (RSUs) as Points of Interest (POIs) in SUMO.
+    Each RSU is stationary, placed at specified intersection coordinates from map.net.xml.
+    Color is red (255,0,0) and size is 5x5 meters for visibility in SUMO-GUI.
+    Include this file in sim.sumocfg under <additional-files>.
+    -->
+    <poi id="rsu_0" type="rsu" color="255,0,0" x="390.92" y="1199.54" width="5.0" height="5.0" />
+    <poi id="rsu_1" type="rsu" color="255,0,0" x="568.42" y="1211.33" width="5.0" height="5.0" />
+    <poi id="rsu_2" type="rsu" color="255,0,0" x="404.18" y="1058.13" width="5.0" height="5.0" />
+    <poi id="rsu_3" type="rsu" color="255,0,0" x="571.36" y="1066.23" width="5.0" height="5.0" />
+    <poi id="rsu_4" type="rsu" color="255,0,0" x="415.96" y="924.09" width="5.0" height="5.0" />
+    <poi id="rsu_5" type="rsu" color="255,0,0" x="586.83" y="932.93" width="5.0" height="5.0" />
+    <poi id="rsu_6" type="rsu" color="255,0,0" x="249.51" y="1047.82" width="5.0" height="5.0" />
+    <poi id="rsu_7" type="rsu" color="255,0,0" x="264.98" y="915.99" width="5.0" height="5.0" />
+    <poi id="rsu_8" type="rsu" color="255,0,0" x="733.39" y="1226.06" width="5.0" height="5.0" />
+    <poi id="rsu_9" type="rsu" color="255,0,0" x="748.86" y="962.39" width="5.0" height="5.0" />
+</additional>
+
+<!--  0 1 2 3 -->
