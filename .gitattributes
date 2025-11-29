@@ -1,0 +1,18 @@
+# Treat all C++ source/header files as C++
+*.cc linguist-language=Cpp
+*.cpp linguist-language=Cpp
+*.hpp linguist-language=Cpp
+*.h linguist-language=Cpp
+
+# Ignore TCL simulation scripts from language stats
+*.tcl linguist-generated=true
+
+# Ignore log files
+*.log linguist-generated=true
+
+# Ignore Python helper scripts if any
+*.py linguist-generated=true
+
+# Ignore build or NS-3 generated files
+*.txt linguist-generated=true
+*.dat linguist-generated=true
